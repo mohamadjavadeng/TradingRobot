@@ -19,8 +19,11 @@ def argmax(x):
 async def start(update= Update, context= ContextTypes.DEFAULT_TYPE):
     # -----------< inlinekeyboard >--------------------- #
     userid = update.effective_user.id
+    print(userid)
+    print(update.effective_chat.type)
     if update.effective_chat.type in ["group", "supergroup"]:
         chatid = update.effective_chat.id
+        print(chatid)
         df = pd.read_excel(excelpath)
         filtr = max(df["chatID"] == chatid)
         print(filtr)
