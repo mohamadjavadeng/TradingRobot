@@ -1,0 +1,45 @@
+from telegram.ext import ChatMemberHandler, CallbackContext
+from telegram import Update, ChatPermissions
+
+
+def on_chat_member(update: Update, context: CallbackContext):
+    chat_member = update.chat_member.new_chat_member
+    # Check if the member joined the channel
+    if chat_member:
+        # Retrieve the member's ID
+        member_id = chat_member.id
+        # Check the conditions for allowing or denying access
+        if some_condition:
+            # Allow access to the channel
+            context.bot.restrict_chat_member(chat_id=update.message.chat_id, user_id=member_id,
+                                             permissions=ChatPermissions())
+        else:
+            # Deny access to the channel
+            context.bot.kick_chat_member(chat_id=update.message.chat_id, user_id=member_id)
+
+
+chat_member_handler = ChatMemberHandler(on_chat_member)
+dispatcher.add_handler(chat_member_handler)
+
+//----------------------------------------------------------------
+from telegram.ext import ChatMemberHandler, CallbackContext
+from telegram import Update, ChatPermissions
+
+def on_chat_member(update: Update, context: CallbackContext):
+    chat_member = update.chat_member.new_chat_member
+    # Check if the member joined the specific channel ID
+    if chat_member and update.message.chat_id == YOUR_CHANNEL_ID:
+        member_id = chat_member.id
+        # Check conditions and manage permissions accordingly
+        if some_condition:
+            context.bot.restrict_chat_member(chat_id=update.message.chat_id, user_id=member_id,
+                                             permissions=ChatPermissions())
+        else:
+            context.bot.kick_chat_member(chat_id=update.message.chat_id, user_id=member_id)
+
+# Create a ChatMemberHandler with the defined callback function
+chat_member_handler = ChatMemberHandler(on_chat_member)
+# Add the handler to your dispatcher
+dispatcher.add_handler(chat_member_handler)
+
+//----------------------------------------------------------------
