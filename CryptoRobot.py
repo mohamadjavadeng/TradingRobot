@@ -3,7 +3,7 @@ from telegram import Update
 from telegram import ChatMember, InputFile
 from telegram.ext import CommandHandler, ContextTypes, Application, MessageHandler
 # from telegram.ext import filters
-# from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram import KeyboardButton, ReplyKeyboardMarkup, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.ext import CallbackContext, CallbackQueryHandler
 import requests
 from bs4 import BeautifulSoup
@@ -38,6 +38,39 @@ def get_crypto_price(coin_id):
         price = data['prices'][0][1]
         return price
     return None
+
+def crypto_button(coin_id):
+    headers= {
+    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0',
+    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
+    'Accept-Language': 'en-US,en;q=0.5',
+    'Connection': 'keep-alive',
+    'Upgrade-Insecure-Requests': '1',
+    'Cache-Control': 'max-age=0'
+    }
+    base_url = "https://www.coingecko.com/en"
+    params = {
+    'page': 1
+    }
+    response = requests.get(base_url, headers=headers, params=params)
+    soup = BeautifulSoup(response.content, 'html.parser')
+    html_stringio = StringIO(str(soup))
+    df_crypto = pd.read_html(html_stringio)[0].head(10)
+    for i in range(0, 10):
+        if df_crypto.loc[i, "Coin"].split(" ")[0] == coin_id:
+            price = df_crypto.loc[i, "Price"]
+            name = df_crypto.loc[i, "Coin"].split(" ")[0]
+            if pd.isna(df_crypto.loc[i, "Unnamed: 3"]):
+                recommandation = "-"
+            else:
+                recommandation = df_crypto.loc[i, "Unnamed: 3"]
+            # oneHour = df_crypto.loc[i, "1h"]
+            # oneDay = df_crypto.loc[i, "24h"]
+            # sevenDays = df_crypto.loc[i, "7d"]
+            # oneMonth = df_crypto.loc[i, "30d"]
+            txt = f"{name} | Price:{price} | recom:{recommandation}"
+            return txt
+
 async def send_msg(update= Update, context= ContextTypes.DEFAULT_TYPE):
     userid = update.effective_user.id
     Name = update.effective_user.first_name
@@ -76,45 +109,20 @@ async def help(update= Update, context= ContextTypes.DEFAULT_TYPE):
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def crypto(update= Update, context= ContextTypes.DEFAULT_TYPE):
-    headers= {
-    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64; rv:87.0) Gecko/20100101 Firefox/87.0',
-    'Accept': 'text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8',
-    'Accept-Language': 'en-US,en;q=0.5',
-    'Connection': 'keep-alive',
-    'Upgrade-Insecure-Requests': '1',
-    'Cache-Control': 'max-age=0'
-    }
-    base_url = "https://www.coingecko.com/en"
-    params = {
-    'page': 1
-    }
-    response = requests.get(base_url, headers=headers, params=params)
-    soup = BeautifulSoup(response.content, 'html.parser')
-    html_stringio = StringIO(str(soup))
-    df_crypto = pd.read_html(html_stringio)[0].head(10)
-    text_crypto = []
     cryptos = ['Bitcoin', 'Ethereum', 'BNB', 'XRP', 'Cardano', 'Dogecoin']
-    for i in range(0, 10):
-        if df_crypto.loc[i, "Coin"].split(" ")[0] in cryptos:
-            price = df_crypto.loc[i, "Price"]
-            name = df_crypto.loc[i, "Coin"].split(" ")[0]
-            if pd.isna(df_crypto.loc[i, "Unnamed: 3"]):
-                recommandation = "-"
-            else:
-                recommandation = df_crypto.loc[i, "Unnamed: 3"]
-            # oneHour = df_crypto.loc[i, "1h"]
-            # oneDay = df_crypto.loc[i, "24h"]
-            # sevenDays = df_crypto.loc[i, "7d"]
-            # oneMonth = df_crypto.loc[i, "30d"]
-            txt = f"{name} | Price:{price} | recom:{recommandation}"
-            text_crypto.append(txt)
+    keys = []
+    for i in range(0, 3):
+        keys.append([InlineKeyboardButton(cryptos[2*i], callback_data=str(cryptos[2*i])),
+             InlineKeyboardButton(cryptos[2*i+1], callback_data=str(cryptos[2*i+1]))])
+    key_mark_up = InlineKeyboardMarkup(inline_keyboard=keys)
+    await context.bot.send_message(chat_id=update.effective_chat.id,
+                                   text="choose one item",
+                                   reply_markup=key_mark_up)
 
-    text = f"""crypto prices are:
-            {text_crypto[0]},
-            {text_crypto[1]}, 
-            {text_crypto[2]},
-            {text_crypto[3]},
-            {text_crypto[4]}"""
+async def button_callback(update= Update, context= ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    command = query.data
+    text = crypto_button(command)
     await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
 
 async def price(update= Update, context= ContextTypes.DEFAULT_TYPE):
@@ -130,6 +138,11 @@ async def price(update= Update, context= ContextTypes.DEFAULT_TYPE):
                                        reply_to_message_id=update.effective_message.id)
   
 async def Alarm_on( context: CallbackContext):
+    userid = context.job.chat_id
+    df = pd.read_csv(excelpath)
+    filtr = df["ChatID"] == str(userid)
+    df.loc[filtr, "Alarm"] = "-"
+    df.to_csv(excelpath, index=False)
     await context.bot.send_message(chat_id=context.job.chat_id, text="Beep your alarm!")
 
 async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
@@ -140,7 +153,7 @@ async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
     Alarm = convert_time(date_string=date, time_string=time)
     tehran_timezone = pytz.timezone('Asia/Tehran')
     # time = datetime.strptime(Alarm, '%Y-%m-%d %H:%M:%S')
-    tehran_time = Alarm.astimezone(tehran_timezone)
+    tehran_time =tehran_timezone.localize(Alarm)
     # Convert Tehran time to UTC
     utc_timezone = pytz.utc
     utc_time = tehran_time.astimezone(utc_timezone)
@@ -148,6 +161,7 @@ async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
         df = pd.read_csv(excelpath)
         filtr = max(df["ChatID"] == str(userid))
         print(Alarm)
+        print(utc_time)
         if filtr:
             df.loc[df["ChatID"] == str(userid), "Alarm"] = Alarm
         else:
@@ -156,6 +170,8 @@ async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
         text = f"Alarm set at {Alarm}"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
         context.job_queue.run_once(Alarm_on,when=utc_time, chat_id=userid)
+
+
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handlers([
@@ -164,6 +180,7 @@ def main():
         CommandHandler('crypto', crypto),
         CommandHandler('price', price),
         CommandHandler('alarm', setAlarm),
+        CallbackQueryHandler(button_callback)
         # CommandHandler('joinchat', join_chat),
         # CallbackQueryHandler(button_callback),
         # MessageHandler(filters.TEXT & (~filters.COMMAND),message_rcv)
