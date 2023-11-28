@@ -137,10 +137,13 @@ async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
     time = context.args[1]
     userid = update.effective_user.id
     Name = update.effective_user.first_name
-    # tehran_timezone = pytz.timezone('Asia/Tehran')
-    # tehran_time = datetime.now(tehran_timezone)
     Alarm = convert_time(date_string=date, time_string=time)
-    # utc_time = tehran_time.astimezone(Alarm)
+    tehran_timezone = pytz.timezone('Asia/Tehran')
+    # time = datetime.strptime(Alarm, '%Y-%m-%d %H:%M:%S')
+    tehran_time = Alarm.astimezone(tehran_timezone)
+    # Convert Tehran time to UTC
+    utc_timezone = pytz.utc
+    utc_time = tehran_time.astimezone(utc_timezone)
     if update.effective_chat.type in ["private"]:
         df = pd.read_csv(excelpath)
         filtr = max(df["ChatID"] == str(userid))
@@ -152,7 +155,7 @@ async def setAlarm(update= Update, context= ContextTypes.DEFAULT_TYPE):
         df.to_csv(excelpath, index=False)
         text = f"Alarm set at {Alarm}"
         await context.bot.send_message(chat_id=update.effective_chat.id, text=text)
-        context.job_queue.run_once(Alarm_on,when=Alarm, chat_id=userid)
+        context.job_queue.run_once(Alarm_on,when=utc_time, chat_id=userid)
 def main():
     app = Application.builder().token(TOKEN).build()
     app.add_handlers([
